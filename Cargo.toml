@@ -1,0 +1,8 @@
+[package]
+name = "lib-tic-tac-toe"
+version = "0.1.0"
+edition = "2021"
+authors = ["P. Todd Decker <ptdecker@mac.com>"]
+
+[dependencies]
+rand = "0.9.0-alpha.1"
