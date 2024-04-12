@@ -1,5 +1,7 @@
 # Rust-based Tic-Tac-Toe Library (lib-tic-tac-toe)
 
+![Rust](https://github.com/ptdecker/lib-tic-tac-toe/workflows/Rust/badge.svg)
+
 This is a Rust-based Tic-Tac-Toe library meant to be incorporated into various
 Tic-Tac-Toe game implementations.
 
