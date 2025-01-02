@@ -1,6 +1,6 @@
 //! Tic-Tac-Toe Errors
 
-use super::*;
+use core::fmt;
 
 #[derive(Debug, Clone)]
 pub enum Error {

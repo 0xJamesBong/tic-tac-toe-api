@@ -1,18 +1,13 @@
 //! Tic-Tac-Toe Game
 
-use super::*;
-
-use crate::{
-    board::Board,
-    history::History,
-    mark::Mark,
-};
+use crate::game::error::Error;
+use crate::game::{board::Board, history::History, mark::Mark}; // Import your custom Error type
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-struct Game {
-    turn: Mark,
-    board: Board,
-    history: History,
+pub struct Game {
+    pub turn: Mark,
+    pub board: Board,
+    pub history: History,
 }
 
 impl Game {

@@ -1,8 +1,7 @@
 //! Tic-Tac-Toe History
 
-use super::*;
-
-use crate::board::Space;
+use crate::game::board::Space;
+use crate::game::error::Error;
 
 const MAX_HISTORY_SIZE: usize = 9;
 

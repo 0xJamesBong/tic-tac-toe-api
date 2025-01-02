@@ -1,8 +1,10 @@
-//! Tic-Tac-Toe Game Board
+// ! Tic-Tac-Toe Game Board
 
-use super::*;
-
-use crate::mark::Mark;
+extern crate alloc;
+use crate::game::error::Error;
+use crate::game::mark::Mark;
+use core::fmt;
+use rand::Rng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(transparent)]
@@ -43,7 +45,7 @@ impl Board {
         Ok(())
     }
 
-    fn get(&self, space: Space) -> Result<Mark, Error> {
+    pub fn get(&self, space: Space) -> Result<Mark, Error> {
         Ok(self.spaces[space.0 as usize])
     }
 }

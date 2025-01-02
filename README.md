@@ -12,3 +12,5 @@ require the Rust standard library (std) and depends only on the core allocation
 (alloc) library for memory management tasks. This makes it suitable for use in
 bare-metal, embedded, or other high-performance or resource-constrained
 environments.
+
+`RUST_LOG=debug cargo run` for prints

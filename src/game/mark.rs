@@ -1,10 +1,14 @@
 //! Tic-Tac-Toe Marks
-
-use super::*;
+extern crate alloc;
+use core::fmt;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
-pub(crate) enum Mark {
+pub enum Mark {
     X = 0x01,
     O = 0x10,
     #[default]
