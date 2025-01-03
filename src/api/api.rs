@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use tracing::{error, info};
 use uuid::Uuid;
 
+use crate::game::board::Space;
 use crate::game::game::Game;
 use crate::game::mark::Mark;
 
@@ -22,7 +23,7 @@ pub struct MoveRequest {
 pub struct GameStateResponse {
     board: [Option<String>; 9],
     turn: String,
-    gameId: Uuid,
+    game_id: Uuid,
 }
 
 #[derive(Clone)]
@@ -56,8 +57,19 @@ impl GameStore {
             Err("Game not found".to_string())
         }
     }
+
+    pub fn update_game(&self, game_id: &Uuid, game: Game) -> Result<(), String> {
+        let mut games = self.games.lock().unwrap();
+        if games.contains_key(game_id) {
+            games.insert(*game_id, game);
+            Ok(())
+        } else {
+            Err("Game not found".to_string())
+        }
+    }
 }
 
+// curl -X POST http://localhost:50051/game/start
 pub async fn start_game(
     game_store: axum::extract::Extension<GameStore>,
 ) -> Json<GameStateResponse> {
@@ -70,87 +82,106 @@ pub async fn start_game(
     let response = GameStateResponse {
         board, // board: [None; 9],
         turn: "X".to_string(),
-        gameId: game_id,
+        game_id: game_id,
     };
 
     Json(response)
 }
 
-// pub async fn make_move(
-//     Path(game_id): Path<Uuid>,
-//     Json(request): Json<MoveRequest>,
-//     game_store: axum::extract::Extension<GameStore>,
-// ) -> Result<Json<GameStateResponse>, String> {
-//     // Mark the move in the game
-//     game_store.make_move(&game_id, request.space)?;
+#[axum::debug_handler]
+pub async fn make_move(
+    Path(game_id): Path<Uuid>,
+    game_store: axum::extract::Extension<GameStore>,
+    Json(request): Json<MoveRequest>,
+) -> Result<Json<GameStateResponse>, String> {
+    println!("   ⭐ Making a move in game ID: {}", game_id);
+    // Mark the move in the game
+    game_store.make_move(&game_id, request.space)?;
 
-//     // Retrieve the game state from the store
-//     let game = game_store.get_game(&game_id).ok_or("Game not found")?;
+    // Retrieve the game state from the store
+    let mut game = game_store.get_game(&game_id).ok_or("Game not found")?;
 
-//     // Access the board directly and transform it into the desired response format
-//     let board: [Option<String>; 9] = game
-//         .board
-//         .iter() // Assuming board is a collection of Option<Mark>
-//         .map(|&mark| match mark {
-//             Some(crate::mark::Mark::X) => Some("X".to_string()),
-//             Some(crate::mark::Mark::O) => Some("O".to_string()),
-//             None => None,
-//         })
-//         .collect::<Vec<_>>()
-//         .try_into()
-//         .unwrap();
+    // Update the game state
+    game_store.update_game(&game_id, game)?;
 
-//     // Prepare the response, including the current turn
-//     let response = GameStateResponse {
-//         board,
-//         turn: if game.turn == crate::mark::Mark::X {
-//             "X".to_string()
-//         } else {
-//             "O".to_string()
-//         },
-//     };
+    // Access the board and transform it into the desired format
+    let board: [Option<String>; 9] = (0..9)
+        .map(|i| {
+            let space = Space::try_from(i as u8).unwrap();
+            match game.board.get(space).unwrap() {
+                Mark::X => Some("X".to_string()),
+                Mark::O => Some("O".to_string()),
+                Mark::Blank => None,
+            }
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("Board should always have 9 spaces");
 
-//     // Return the response as JSON
-//     Ok(Json(response))
-// }
+    // Prepare the response
+    let response = GameStateResponse {
+        board,
+        turn: match game.turn {
+            Mark::X => "X".to_string(),
+            Mark::O => "O".to_string(),
+            _ => "Unknown".to_string(),
+        },
+        game_id: game_id,
+    };
+
+    Ok(Json(response))
+}
+
+// returns an array of all game ids
+pub async fn get_all_game_ids(game_store: axum::extract::Extension<GameStore>) -> Json<Vec<Uuid>> {
+    let games = game_store.games.lock().unwrap();
+    let game_ids = games.keys().cloned().collect();
+    Json(game_ids)
+}
+
+// curl -v -X GET http://localhost:50051/game/state/{game_id}
+pub async fn get_game_state(
+    Path(game_id): Path<Uuid>,
+    game_store: axum::extract::Extension<GameStore>,
+) -> Result<Json<GameStateResponse>, String> {
+    println!("⭐ Getting game state for ID: {}", game_id);
+
+    // Retrieve the game from the store
+    let game = game_store.get_game(&game_id).ok_or("Game not found")?;
+
+    // Create the board array
+    let board: [Option<String>; 9] = (0..9)
+        .map(|i| {
+            let space = Space::try_from(i as u8).unwrap();
+            match game.board.get(space).unwrap() {
+                Mark::X => Some("X".to_string()),
+                Mark::O => Some("O".to_string()),
+                Mark::Blank => None,
+            }
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("Board should always have 9 spaces");
+
+    // Construct the response
+    let response = GameStateResponse {
+        board,
+        turn: match game.turn {
+            Mark::X => "X".to_string(),
+            Mark::O => "O".to_string(),
+            _ => "Unknown".to_string(),
+        },
+        game_id: game_id,
+    };
+
+    Ok(Json(response))
+}
 
 // pub async fn get_game_state(
 //     Path(game_id): Path<Uuid>,
 //     game_store: axum::extract::Extension<GameStore>,
 // ) -> Result<Json<GameStateResponse>, String> {
-//     let game = game_store.get_game(&game_id).ok_or("Game not found")?;
-
-//     let board: [Option<String>; 9] = game
-//         .board
-//         .board()
-//         .iter()
-//         .map(|&mark| match mark {
-//             Some(crate::mark::Mark::X) => Some("X".to_string()),
-//             Some(crate::mark::Mark::O) => Some("O".to_string()),
-//             None => None,
-//         })
-//         .collect::<Vec<_>>()
-//         .try_into()
-//         .unwrap();
-
-//     let response = GameStateResponse {
-//         board,
-//         turn: if game.turn == crate::mark::Mark::X {
-//             "X".to_string()
-//         } else {
-//             "O".to_string()
-//         },
-//     };
-
-//     Ok(Json(response))
-// }
-
-// pub async fn get_all_game_ids(game_store: axum::extract::Extension<GameStore>) -> Result<Json<GameStat
-
-// pub async fn get_game_state(
-//     Path(game_id): Path<Uuid>,
-//     game_store: axum::extract::Extension<GameStore>,
-// ) -> Result<Json<GameStateResponse>, String> {
+//     println!("   ⭐ Getting game state... of {}", game_id);
 //     // Retrieve the game from the store
 //     let game = game_store.get_game(&game_id).ok_or("Game not found")?;
 
@@ -177,7 +208,7 @@ pub async fn start_game(
 //             Mark::O => "O".to_string(),
 //             _ => "Unknown".to_string(), // Handle unexpected cases gracefully
 //         },
-//         gameId: game_id,
+//         game_id: game_id,
 //     };
 
 //     // Return the JSON response
@@ -196,7 +227,9 @@ pub async fn start_server() {
     // Create the application router
     let app = Router::new()
         .route("/game/start", post(start_game)) // Route for starting a game
-        // .route("game/state/:game_id", get(get_game_state)) // Route for getting the game state
+        .route("/game/state/:game_id", get(get_game_state)) // Route for getting the game state
+        .route("/game/ids", get(get_all_game_ids)) // Route for getting all game IDs
+        .route("/game/:game_id/move", post(make_move)) // Route for making a move
         .layer(axum::extract::Extension(game_store)); // Pass the game store extension
     println!("Router configured with /game/start route.");
 
