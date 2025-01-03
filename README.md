@@ -14,3 +14,23 @@ bare-metal, embedded, or other high-performance or resource-constrained
 environments.
 
 `RUST_LOG=debug cargo run` for prints
+
+To start
+`cargo run`
+
+To start a game
+`curl -X POST http://localhost:50051/game/start`
+
+To get all game ids:
+`curl -X GET http://localhost:50051/game/ids`
+
+To get the status of a game
+`curl -v -X GET http://localhost:50051/game/state/bc816ffe-9561-4c0c-89ae-c4bd04175c8c`
+
+To make a move
+
+```shell
+curl -X POST http://localhost:50051/game/f5d7a789-1931-428b-92d2-9c6c4fa4c177/move \
+ -H "Content-Type: application/json" \
+ -d '{"space": 1}'
+```

@@ -48,6 +48,19 @@ impl Board {
     pub fn get(&self, space: Space) -> Result<Mark, Error> {
         Ok(self.spaces[space.0 as usize])
     }
+
+    pub fn to_display_array(&self) -> [Option<String>; 9] {
+        self.spaces
+            .iter()
+            .map(|mark| match mark {
+                Mark::X => Some("X".to_string()),
+                Mark::O => Some("O".to_string()),
+                Mark::Blank => None,
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Board should always have 9 spaces")
+    }
 }
 
 impl fmt::Display for Board {

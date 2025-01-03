@@ -21,9 +21,10 @@ pub struct MoveRequest {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GameStateResponse {
-    board: [Option<String>; 9],
-    turn: String,
-    game_id: Uuid,
+    pub board: [Option<String>; 9],
+    pub grid: String,
+    pub turn: String,
+    pub game_id: Uuid,
 }
 
 #[derive(Clone)]
@@ -69,24 +70,38 @@ impl GameStore {
     }
 }
 
+pub fn print_grid_display(grid: String) {
+    println!("Grid Display:\n{}", grid);
+}
 // curl -X POST http://localhost:50051/game/start
 pub async fn start_game(
     game_store: axum::extract::Extension<GameStore>,
 ) -> Json<GameStateResponse> {
     println!("   ⭐ Starting a new game...");
-    // info!("  ⭐ Starting a new game...");
     let game = Game::new();
     let game_id = game_store.add_game(game);
-    let board = [None, None, None, None, None, None, None, None, None];
+    let board = game.board.to_display_array();
+    let grid = format!("{}", game.board);
+    // let board = [None, None, None, None, None, None, None, None, None];
 
     let response = GameStateResponse {
         board, // board: [None; 9],
+        grid: grid.clone(),
         turn: "X".to_string(),
         game_id: game_id,
     };
 
+    print_grid_display(grid);
+    println!("game_id: {:?}", game_id);
+    println!("To make a move, use the following curl command:");
+    println!("curl -X POST http://localhost:50051/game/{}/move -H \"Content-Type: application/json\" -d '{{\"space\": 2}}'", game_id);
+
     Json(response)
 }
+
+// curl -X POST http://localhost:50051/game/{game_id}/move \
+//  -H "Content-Type: application/json" \
+//  -d '{"space": 2}'
 
 #[axum::debug_handler]
 pub async fn make_move(
@@ -121,6 +136,7 @@ pub async fn make_move(
     // Prepare the response
     let response = GameStateResponse {
         board,
+        grid: format!("{}", game.board),
         turn: match game.turn {
             Mark::X => "X".to_string(),
             Mark::O => "O".to_string(),
@@ -128,14 +144,16 @@ pub async fn make_move(
         },
         game_id: game_id,
     };
-
+    print_grid_display(format!("{}", game.board));
     Ok(Json(response))
 }
 
 // returns an array of all game ids
+// curl -v -X GET http://localhost:50051/game/ids
 pub async fn get_all_game_ids(game_store: axum::extract::Extension<GameStore>) -> Json<Vec<Uuid>> {
     let games = game_store.games.lock().unwrap();
     let game_ids = games.keys().cloned().collect();
+    println!("   ⭐ Getting all game IDs: {:?}", game_ids);
     Json(game_ids)
 }
 
@@ -150,30 +168,24 @@ pub async fn get_game_state(
     let game = game_store.get_game(&game_id).ok_or("Game not found")?;
 
     // Create the board array
-    let board: [Option<String>; 9] = (0..9)
-        .map(|i| {
-            let space = Space::try_from(i as u8).unwrap();
-            match game.board.get(space).unwrap() {
-                Mark::X => Some("X".to_string()),
-                Mark::O => Some("O".to_string()),
-                Mark::Blank => None,
-            }
-        })
-        .collect::<Vec<_>>()
-        .try_into()
-        .expect("Board should always have 9 spaces");
+    let board = game.board.to_display_array();
+
+    // Use the Display implementation of the Board for the grid format
+    let grid = format!("{}", game.board);
 
     // Construct the response
     let response = GameStateResponse {
         board,
+        grid: grid.clone(),
         turn: match game.turn {
             Mark::X => "X".to_string(),
             Mark::O => "O".to_string(),
             _ => "Unknown".to_string(),
         },
-        game_id: game_id,
+        game_id,
     };
 
+    print_grid_display(grid);
     Ok(Json(response))
 }
 
@@ -181,37 +193,36 @@ pub async fn get_game_state(
 //     Path(game_id): Path<Uuid>,
 //     game_store: axum::extract::Extension<GameStore>,
 // ) -> Result<Json<GameStateResponse>, String> {
-//     println!("   ⭐ Getting game state... of {}", game_id);
+//     println!("⭐ Getting game state for ID: {}", game_id);
+
 //     // Retrieve the game from the store
 //     let game = game_store.get_game(&game_id).ok_or("Game not found")?;
 
-//     // Create the board array by iterating over all spaces (0 to 8)
+//     // Create the board array
 //     let board: [Option<String>; 9] = (0..9)
 //         .map(|i| {
-//             let space = Space::try_from(i as u8).unwrap(); // Convert index to Space
+//             let space = Space::try_from(i as u8).unwrap();
 //             match game.board.get(space).unwrap() {
-//                 // Use `get` to fetch the mark
 //                 Mark::X => Some("X".to_string()),
 //                 Mark::O => Some("O".to_string()),
 //                 Mark::Blank => None,
 //             }
 //         })
-//         .collect::<Vec<_>>() // Collect into a vector first
-//         .try_into() // Convert the vector to an array
-//         .unwrap();
+//         .collect::<Vec<_>>()
+//         .try_into()
+//         .expect("Board should always have 9 spaces");
 
-//     // Determine whose turn it is
+//     // Construct the response
 //     let response = GameStateResponse {
 //         board,
 //         turn: match game.turn {
 //             Mark::X => "X".to_string(),
 //             Mark::O => "O".to_string(),
-//             _ => "Unknown".to_string(), // Handle unexpected cases gracefully
+//             _ => "Unknown".to_string(),
 //         },
 //         game_id: game_id,
 //     };
 
-//     // Return the JSON response
 //     Ok(Json(response))
 // }
 
